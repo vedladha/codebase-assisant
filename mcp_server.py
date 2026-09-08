@@ -145,8 +145,44 @@ def get_git_diff(
 
     if len(output) > 20000:
         return output[:20000] + "\n\n[diff truncated - narrow it with path_filter]"
-
     return output
+
+@mcp.resource(
+    "repo://readme",
+    name="Repository README",
+    description="The README at the root of the configured repository.",
+    mime_type="text/markdown",
+)
+def repo_readme() -> str:
+    for candidate in ["README.md", "README.rst", "README.txt", "README"]:
+        path = repo_root / candidate
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    return "No README found at the repository root."
+
+@mcp.prompt(
+    name="review_changes",
+    description="Review uncommitted changes and assess their impact.",
+)
+def review_changes(
+    focus: str = Field(
+        default="",
+        description="Optional area to focus on, e.g. 'error handling'",
+    )
+) -> str:
+    focus_line = f"\nPay particular attention to: {focus}\n" if focus else ""
+    return f"""Review the uncommitted changes in this repository.
+
+1. Call get_git_diff to see what changed.
+2. For each modified file, call read_file to see it in full context.
+3. Use search_code to find other places that call the changed functions.
+{focus_line}
+Then report:
+- A summary of what changed and why it appears to have changed
+- Which other parts of the codebase could be affected
+- Any bugs, missed callers, or risks you notice
+
+Be concrete and cite file paths and line numbers."""
 
 
 if __name__ == "__main__":
